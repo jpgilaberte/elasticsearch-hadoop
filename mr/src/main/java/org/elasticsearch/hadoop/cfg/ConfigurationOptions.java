@@ -162,6 +162,7 @@ public interface ConfigurationOptions {
     String ES_MAPPING_METADATA_EXTRACTOR_CLASS = "es.mapping.metadata.extractor.class";
 
     String ES_MAPPING_ID = "es.mapping.id";
+    String ES_MAPPING_DEFINITION = "es.mapping.definition";
     String ES_MAPPING_ID_EXTRACTOR_CLASS = "es.mapping.id.extractor.class";
     String ES_MAPPING_PARENT = "es.mapping.parent";
     String ES_MAPPING_PARENT_EXTRACTOR_CLASS = "es.mapping.parent.extractor.class";

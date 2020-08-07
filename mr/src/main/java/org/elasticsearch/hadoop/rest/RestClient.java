@@ -80,6 +80,7 @@ public class RestClient implements Closeable, StatsAware {
     private final ObjectMapper mapper;
     private final TimeValue scrollKeepAlive;
     private final boolean indexReadMissingAsEmpty;
+    private final String mappingDefinition;
     private final HttpRetryPolicy retryPolicy;
     final ClusterInfo clusterInfo;
     private final ErrorExtractor errorExtractor;
@@ -105,7 +106,7 @@ public class RestClient implements Closeable, StatsAware {
         this.network = networkClient;
         this.scrollKeepAlive = TimeValue.timeValueMillis(settings.getScrollKeepAlive());
         this.indexReadMissingAsEmpty = settings.getIndexReadMissingAsEmpty();
-
+        this.mappingDefinition = settings.getMappingDefinition();
         String retryPolicyName = settings.getBatchWriteRetryPolicy();
 
         if (ConfigurationOptions.ES_BATCH_WRITE_RETRY_POLICY_SIMPLE.equals(retryPolicyName)) {
@@ -541,21 +542,32 @@ public class RestClient implements Closeable, StatsAware {
         return (res.status() == HttpStatus.OK ? true : false);
     }
 
+    //. Add body in request if es.mapping.definition it is populated
+    private BytesArray buildBodyMapping() {
+        if (null != mappingDefinition) {
+            return new BytesArray(mappingDefinition);
+        }
+        return null;
+    }
+
     public boolean touch(String index) {
         if (!indexExists(index)) {
-            Response response = execute(PUT, index, false);
+            Response response = execute(PUT, index, buildBodyMapping(), false);
 
             if (response.hasFailed()) {
-                String msg = null;
+                Object msg = null;
                 // try to parse the answer
                 try {
                     msg = parseContent(response.body(), "error");
                 } catch (Exception ex) {
                     // can't parse message, move on
+                    throw new EsHadoopIllegalStateException("Response error message can't parse", ex);
                 }
-
-                if (StringUtils.hasText(msg) && !msg.contains("IndexAlreadyExistsException")) {
-                    throw new EsHadoopIllegalStateException(msg);
+                if (msg instanceof String) {
+                    throw new EsHadoopIllegalStateException((String) msg);
+                }
+                if (msg instanceof Map) {
+                    throw new EsHadoopInvalidRequest((String) ((Map) msg).get("reason"));
                 }
             }
             return response.hasSucceeded();

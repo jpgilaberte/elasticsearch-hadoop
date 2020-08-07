@@ -176,6 +176,30 @@ The name of an existing {es} Ingest pipeline that should be targeted when indexi
 `es.mapping.id` (default none)::
 The document field/property name containing the document id.
 
+`es.mapping.definition` (default none)::
+The custom mapping index definition. Only apply if index does not exist.
+
+For example:
+[source,ini]
+----
+# defining shards and replicas
+es.mapping.definition = '{
+                           "settings": {
+                             "number_of_shards": 3,
+                             "number_of_replicas": 2
+                           }
+                         }'
+
+# specifying custom mapping
+es.mapping.definition = '{
+                           "mappings": {
+                             "properties": {
+                               "field1": { "type": "integer" }
+                              }
+                            }
+                         }'
+----
+
 `es.mapping.parent` (default none)::
 The document field/property name containing the document parent. To specify a constant, use the `<CONSTANT>` format.
 

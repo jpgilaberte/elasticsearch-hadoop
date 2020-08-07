@@ -19,6 +19,7 @@
 
 package org.elasticsearch.hadoop.rest;
 
+import org.elasticsearch.hadoop.cfg.ConfigurationOptions;
 import org.elasticsearch.hadoop.cfg.Settings;
 import org.elasticsearch.hadoop.rest.query.MatchAllQueryBuilder;
 import org.elasticsearch.hadoop.rest.stats.Stats;
@@ -487,4 +488,89 @@ public class RestClientTest {
         Mockito.verify(mock).execute(Mockito.any(SimpleRequest.class), Mockito.eq(false));
     }
 
+    @Test
+    public void testTouch() {
+        String index = "idx";
+
+        //. Mock NetworkClient
+        NetworkClient mock = Mockito.mock(NetworkClient.class);
+        Stats stats = new Stats();
+        Mockito.when(mock.transportStats()).thenReturn(stats);
+
+        //. Mock response
+        String responseHead = "";
+        String responsePut = "{\"acknowledged\":true,\"shards_acknowledged\":true,\"index\":\"" + index + "\"}";
+        Mockito.when(mock.execute(Mockito.any(SimpleRequest.class), Mockito.eq(true)))
+                .thenReturn(new SimpleResponse(404, new FastByteArrayInputStream(new BytesArray(responseHead)), "localhost:9200"),
+                        new SimpleResponse(200, new FastByteArrayInputStream(new BytesArray(responsePut)), "localhost:9200"));
+
+        //. Instantiate RestClient with custom settings
+        String mappingDefinition = "{\n" +
+                                    "    \"settings\" : {\n" +
+                                    "        \"number_of_shards\" : 1\n" +
+                                    "    },\n" +
+                                    "    \"mappings\" : {\n" +
+                                    "        \"properties\" : {\n" +
+                                    "            \"field1\" : { \"type\" : \"text\" }\n" +
+                                    "        }\n" +
+                                    "    }\n" +
+                                    "}'\n";
+
+        Settings customTestSetting = new TestSettings();
+        customTestSetting.setProperty(ConfigurationOptions.ES_MAPPING_DEFINITION, mappingDefinition);
+        RestClient client = new RestClient(customTestSetting, mock);
+
+        //. Test
+        Boolean result = client.touch(index);
+        assertNotNull(result);
+        assertEquals(true, result);
+    }
+
+    @Test(expected = EsHadoopInvalidRequest.class)
+    public void testTouchFailure() {
+        String index = "idx";
+
+        //. Mock NetworkClient
+        NetworkClient mock = Mockito.mock(NetworkClient.class);
+        Stats stats = new Stats();
+        Mockito.when(mock.transportStats()).thenReturn(stats);
+
+        //. Mock response
+        String responseHead = "";
+        String responsePut = "{\n" +
+                            "  \"error\": {\n" +
+                            "    \"root_cause\": [\n" +
+                            "      {\n" +
+                            "        \"type\": \"parse_exception\",\n" +
+                            "        \"reason\": \"unknown key [settings_wrong] for create index\"\n" +
+                            "      }\n" +
+                            "    ],\n" +
+                            "    \"type\": \"parse_exception\",\n" +
+                            "    \"reason\": \"unknown key [settings_wrong] for create index\"\n" +
+                            "  },\n" +
+                            "  \"status\": 400\n" +
+                            "}";
+
+        Mockito.when(mock.execute(Mockito.any(SimpleRequest.class), Mockito.eq(true)))
+                .thenReturn(new SimpleResponse(404, new FastByteArrayInputStream(new BytesArray(responseHead)), "localhost:9200"),
+                        new SimpleResponse(400, new FastByteArrayInputStream(new BytesArray(responsePut)), "localhost:9200"));
+
+        //. Instantiate RestClient with wrong custom settings
+        String mappingDefinition = "{\n" +
+                "    \"settings_wrong\" : {\n" +
+                "        \"number_of_shards\" : 1\n" +
+                "    },\n" +
+                "    \"mappings\" : {\n" +
+                "        \"properties\" : {\n" +
+                "            \"field1\" : { \"type\" : \"text\" }\n" +
+                "        }\n" +
+                "    }\n" +
+                "}'\n";
+        Settings customTestSetting = new TestSettings();
+        customTestSetting.setProperty(ConfigurationOptions.ES_MAPPING_DEFINITION, mappingDefinition);
+        RestClient client = new RestClient(customTestSetting, mock);
+
+        //. Test
+        client.touch(index);
+    }
 }

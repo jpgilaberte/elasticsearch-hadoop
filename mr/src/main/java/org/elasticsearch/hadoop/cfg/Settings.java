@@ -258,6 +258,10 @@ public abstract class Settings {
         return getProperty(ES_MAPPING_ID);
     }
 
+    public String getMappingDefinition() {
+        return getProperty(ES_MAPPING_DEFINITION);
+    }
+
     public String getMappingParent() {
         return getProperty(ES_MAPPING_PARENT);
     }
